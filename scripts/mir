@@ -1,0 +1,49 @@
+#!/usr/bin/perl
+
+BEGIN {use FindBin qw($Bin); require "$Bin/_init.pl"};
+
+use 5.024;
+use AnyEvent;
+use AnyEvent::HTTPD;
+use Sub::Daemon;
+
+my $daemon = new Sub::Daemon(debug => 1);
+$daemon->_daemonize;
+
+my $port = 8000;
+
+$daemon->spawn(
+	nproc => 8,
+	code  => sub {
+		    my %params = (
+				child_num => undef,
+				@_,
+		    );
+		    my $child_num = $params{child_num};
+		    
+			my $p = $port + $child_num - 1;
+			
+			warn "Starting child num: $child_num; port = $p";
+			my $cv = AnyEvent->condvar;
+			my $httpd = AnyEvent::HTTPD->new(port => $p);
+			$httpd->reg_cb(
+				request => sub {
+					my $httpd = shift;
+					my $req   = shift;
+					
+					my $url = $req->url;
+					
+					$req->respond({
+						content => [
+							'text/html',
+							"Hello on MIR -> $url",
+						],
+					});
+				},
+			);
+			
+			$SIG{$_} = sub { $cv->send } for qw( TERM INT );
+			
+			$cv->wait;
+	},
+);
