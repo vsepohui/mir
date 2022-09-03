@@ -13,6 +13,7 @@ my $routes = [
     [[qw/u up update/],     \&update],
     [[qw/p pack-static/],	\&pack],
     [[qw/w www/],           \&www],
+    [[qw/ws www-stop/],     \&www_stop],
     [[qw/h help/],          \&help],
 ];
 
@@ -25,7 +26,8 @@ sub help {
     say "\tmir-control setup               Start to setup mir backend-node";
     say "\tmir-control update | up | u     Git pull \& Reload www-server (backend)";
     say "\tmir-control pack | p            Pack static (JS & CSS)";
-    say "\tmir-control www | w             Reload www-server (backend)";
+    say "\tmir-control www | w             Start, or reload www-server (backend, kill HUP for reload)";
+    say "\tmir-control www-stop | ws       Stoping www-server (backend, kill INT)";
     say "\tmir-control help | h            Show this help";
 }
 
@@ -42,13 +44,42 @@ sub pack {
     ex('uglifyjs public/js/lightbox-plus-jquery.min.js public/js/masonry.pkgd.min.js public/js/imagesloaded.pkgd.min.js > public/js/yahwe-photos.min.js');
 }
 
+
+sub get_www_pid {
+	my $pid = -e './pids/mir.pid' ? `cat ./pids/mir.pid` : undef;
+	chomp $pid;
+	return $pid;
+}
+
+sub www_start {
+	ex('./scripts/mir');
+}
+
 sub www {
-    ex('cat ./mir.pid | xargs kill -HUP');
+	my $pid = get_www_pid();
+	
+	if ($pid && kill (0, $pid)) {
+		say "Reloading www-backend (gracefull), kill HUP $pid";
+		ex('cat ./pids/mir.pid | xargs kill -HUP');
+		return 1;
+	}
+	say "Starting www-backend (node)";
+	www_start;
+}
+
+sub www_stop {
+	my $pid = get_www_pid();
+	return say "Backend is not was be runned" if ((!$pid) || (!kill (0, $pid)));
+	say "Stopping www-backend (node), kill INT $pid";
+    kill INT => $pid;
 }
 
 sub ex {
     my $cmd = shift;
-    print `$cmd`;
+    my $out = `$cmd`;
+    chomp $out;
+    say $out if $out;
+    return 1;
 }
 
 1;

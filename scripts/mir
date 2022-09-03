@@ -7,7 +7,11 @@ use AnyEvent;
 use AnyEvent::HTTPD;
 use Sub::Daemon;
 
-my $daemon = new Sub::Daemon(debug => 1);
+my $daemon = new Sub::Daemon(
+	debug => 0,
+	piddir => "$Bin/../pids/",
+	logdir => "$Bin/../logs/",
+);
 $daemon->_daemonize;
 
 my $port = 8000;
