@@ -6,6 +6,9 @@ use 5.024;
 use AnyEvent;
 use AnyEvent::HTTPD;
 use Sub::Daemon;
+use Mir::Config;
+
+my $config = Mir::Config->get;
 
 my $daemon = new Sub::Daemon(
 	debug => 0,
@@ -17,7 +20,7 @@ $daemon->_daemonize;
 my $port = 8000;
 
 $daemon->spawn(
-	nproc => 8,
+	nproc => $config->{ncpus},
 	code  => sub {
 		    my %params = (
 				child_num => undef,

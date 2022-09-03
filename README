@@ -1,7 +1,7 @@
 README
 
 NEEDFULL:
-LINUX, WITH FREE, UNBUSYED PORTS: 3000 (for nginx), 8000-8007 (for backends)
+LINUX, WITH FREE, UNBUSYED PORTS: 3000 (for nginx), 8000..80XX (for backends), XX - COUNTED BY CORES NUMBER
 
 AUTO-INSTALL FOR DEBIAN / ARCHLINUX:
 ./mir-control setup
@@ -24,9 +24,7 @@ HOW TO INSTALL MIR KERNEL ON DEBIAN / UBUNTU:
 
 sudo apt install cpanminus make build-essential
 
-cpanm AnyEvent
-cpanm EV
-cpanm AnyEvent::HTTPD
+sudo cpanm AnyEvent EV AnyEvent::HTTPD Linux::Cpuinfo JSON::XS
 
 Thats all
 

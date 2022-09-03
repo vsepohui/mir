@@ -1,7 +1,11 @@
 #!/usr/bin/perl
 
-use FindBin qw($Bin);
 use 5.024;
+
+use FindBin qw($Bin);
+use Linux::Cpuinfo;
+use JSON::XS;
+
 
 use experimental 'smartmatch';
 
@@ -56,12 +60,47 @@ sub setup {
 		`sudo pacman -S cpanminus make base-devel`;
 	}
 	
-	`sudo cpanm AnyEvent EV AnyEvent::HTTPD`;
+	`sudo cpanm AnyEvent EV AnyEvent::HTTPD Linux::Cpuinfo JSON::XS`;
 
 	`cd nginx/nginx-1.22.0-src && ./configure --prefix=$Bin/nginx`;
 	`cd nginx/nginx-1.22.0-src && make && make install && make clean`;
 	`cp nginx/nginx.conf nginx/conf/nginx.conf`;
 	
+	my $ncpu = Linux::Cpuinfo->new->num_cpus;
+	
+	my $ncpu_input = 0;
+	my $get_cpu_nums = sub {
+		print "Set number of CPU cores [$ncpu]? ";
+		my $ncpu_input = <STDIN>;
+		chomp $ncpu_input;
+		return $ncpu_input;
+	};
+	
+	$ncpu_input = $get_cpu_nums->();
+	$ncpu_input = $get_cpu_nums->() while ($ncpu =~ /\D/ || $ncpu < 1 || $ncpu > 100);
+	$ncpu_input ||= $ncpu;
+	$ncpu = $ncpu_input;
+	
+
+	my $start_port = 8000;
+	open my $fh, '>nginx/conf/mir-backend-upstream.conf';
+	for (1..$ncpu) {
+		my $port = $start_port + $_ - 1;
+		say $fh "server 127.0.0.1:$port;"
+	}
+	close $fh;
+	
+	`perl -i -pe 's/worker_processes\s+\d+/worker_processes $ncpu/' nginx/conf/nginx.conf`;
+	
+	
+	my $config_text = encode_json({
+		ncpus => $ncpu,
+	});
+	
+	open $fh, '>mir.config';
+	print $fh $config_text;
+	close $fh;
+		
 	return 1;
 }
 
