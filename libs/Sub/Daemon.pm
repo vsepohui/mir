@@ -307,8 +307,8 @@ sub spawn {
         $self->log->info( 'Send HUP to child processes' );
         kill HUP => keys %childs;
         # Переоткрываем лог??
-        $self->log->info( 'Log reopening..' );
-        $self->log->reopen();
+        #$self->log->info( 'Log reopening..' );
+        #$self->log->reopen();
     };
 
     # Запускаем дочерние процессы

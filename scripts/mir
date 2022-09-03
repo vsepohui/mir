@@ -23,6 +23,8 @@ $daemon->spawn(
 		    
 			my $p = $port + $child_num - 1;
 			
+			my $startup_time = scalar localtime;
+			
 			warn "Starting child num: $child_num; port = $p";
 			my $cv = AnyEvent->condvar;
 			my $httpd = AnyEvent::HTTPD->new(port => $p);
@@ -36,13 +38,14 @@ $daemon->spawn(
 					$req->respond({
 						content => [
 							'text/html',
-							"Hello on MIR -> $url",
+							"Hello on MIR -> $url; Startup time (for debug): $startup_time",
 						],
 					});
 				},
 			);
 			
 			$SIG{$_} = sub { $cv->send } for qw( TERM INT );
+			$SIG{'HUP'} = sub {$cv->send};
 			
 			$cv->wait;
 	},

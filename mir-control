@@ -1,0 +1,56 @@
+#!/usr/bin/perl
+
+use FindBin qw($Bin);
+use 5.024;
+
+use experimental 'smartmatch';
+
+my $cmd = $ARGV[0] || 'help';
+$cmd =~ s/\W//g;
+
+my $routes = [
+	[[qw/setup/],     		\&setup],
+    [[qw/u up update/],     \&update],
+    [[qw/p pack-static/],	\&pack],
+    [[qw/w www/],           \&www],
+    [[qw/h help/],          \&help],
+];
+
+(map {$_->[1]->()} grep {$cmd ~~ $_->[0]} @$routes) or help();
+exit();
+
+
+sub help {
+    say "Usage:";
+    say "\tmir-control setup               Start to setup mir backend-node";
+    say "\tmir-control update | up | u     Git pull \& Reload www-server (backend)";
+    say "\tmir-control pack | p            Pack static (JS & CSS)";
+    say "\tmir-control www | w             Reload www-server (backend)";
+    say "\tmir-control help | h            Show this help";
+}
+
+sub update {
+    ex('git pull');
+    ex('./mir-control www');
+}
+
+sub pack {
+    ex('cat public/css/bootstrap.min.css public/css/style.css public/css/player.css public/css/fontawesome/all.css > public/css/yahwe.css');
+    ex('cat public/js/jquery-3.6.0.min.js public/js/popper.min.js public/js/bootstrap.bundle.min.js public/js/clipboard.js public/js/player.js > public/js/yahwe.js');
+    ex('java  -jar etc/yuicompressor-2.4.8.jar public/css/yahwe.css  > public/css/yahwe.min.css');
+    ex('uglifyjs public/js/yahwe.js > public/js/yahwe.min.js');
+    ex('uglifyjs public/js/lightbox-plus-jquery.min.js public/js/masonry.pkgd.min.js public/js/imagesloaded.pkgd.min.js > public/js/yahwe-photos.min.js');
+}
+
+sub www {
+    ex('cat ./mir.pid | xargs kill -HUP');
+}
+
+sub ex {
+    my $cmd = shift;
+    print `$cmd`;
+}
+
+1;
+
+
