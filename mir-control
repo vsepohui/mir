@@ -14,6 +14,9 @@ my $routes = [
     [[qw/p pack-static/],	\&pack],
     [[qw/w www/],           \&www],
     [[qw/ws www-stop/],     \&www_stop],
+    [[qw/n nginx/],         \&ningx],
+    [[qw/start/],           \&start],
+    [[qw/stop/],            \&stop],
     [[qw/h help/],          \&help],
 ];
 
@@ -28,7 +31,38 @@ sub help {
     say "\tmir-control pack | p            Pack static (JS & CSS)";
     say "\tmir-control www | w             Start, or reload www-server (backend, kill HUP for reload)";
     say "\tmir-control www-stop | ws       Stoping www-server (backend, kill INT)";
+    say "\tmir-control nginx | n           Start nginx";
+    say "\tmir-control start               Starting nginx && backend";
+    say "\tmir-control stop                Stopping nginx && backend";
     say "\tmir-control help | h            Show this help";
+}
+
+sub setup {
+	my $get_linux_distibution = sub  {
+		print "Choose Linux Distribution [Ubuntu/Debian=D, ArchLinux=A]? ";
+		my $d = <STDIN>;
+		chomp $d;
+		return $d;
+	};
+	
+	my $distro = $get_linux_distibution->();
+	$distro = $get_linux_distibution->() while not (uc ($distro) ~~ [qw/D A/]);
+	
+	if ($distro eq 'D') { 
+		# Setup for Debian / Ubuntu
+		`sudo apt install cpanminus make build-essential`;
+	} else {
+		# Setup for ArchLinux
+		`sudo pacman -S cpanminus make base-devel`;
+	}
+	
+	`sudo cpanm AnyEvent EV AnyEvent::HTTPD`;
+
+	`cd nginx/nginx-1.22.0-src && ./configure --prefix=$Bin/nginx`;
+	`cd nginx/nginx-1.22.0-src && make && make install && make clean`;
+	`cp nginx/nginx.conf nginx/conf/nginx.conf`;
+	
+	return 1;
 }
 
 sub update {
@@ -69,9 +103,51 @@ sub www {
 
 sub www_stop {
 	my $pid = get_www_pid();
+	say "Stoppping www-backend (node)";
 	return say "Backend is not was be runned" if ((!$pid) || (!kill (0, $pid)));
 	say "Stopping www-backend (node), kill INT $pid";
     kill INT => $pid;
+}
+
+sub get_nginx_pid {
+	return unless -f 'nginx/logs/nginx.pid';
+	my $pid = `cat nginx/logs/nginx.pid`;
+	chomp $pid;
+	return $pid;
+}
+
+sub nginx {
+	say "Starting nginx";
+	my $pid = get_nginx_pid;
+	if ($pid && kill 0, $pid) {	
+		warn "nginx alredy running";
+	} else {
+		ex ('nginx/sbin/nginx');
+	}
+	return 1;
+}
+
+sub nginx_stop {
+	say "Stopping nginx...";
+	my $pid = get_nginx_pid;
+	if ($pid && kill 0, $pid) {
+		kill TERM => $pid;
+	} else {
+		warn "nginx not was be runned";
+	}
+	return 1;
+}
+
+sub start {
+	say "Starting mir...";
+	www;
+	nginx;
+}
+
+sub stop {
+	say "Stopping mir...";
+	www_stop;
+	nginx_stop;
 }
 
 sub ex {

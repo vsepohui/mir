@@ -1,10 +1,28 @@
 README
 
+NEEDFULL:
+LINUX, WITH FREE, UNBUSYED PORTS: 3000 (for nginx), 8000-8007 (for backends)
+
+AUTO-INSTALL FOR DEBIAN / ARCHLINUX:
+./mir-control setup
+
+
+TO START BACKEND:
+./mir-control www
+./mir-control nginx
+OR JUST:
+./mir-control start
+
+
+TO OPEN MIR IN BROWSER:
+http://127.0.0.1:3000/
+
+
+FRO AHOTHER OS OR FOR MANUAL READ NEXT:
+##########################################################
 HOW TO INSTALL MIR KERNEL ON DEBIAN / UBUNTU:
 
-
-apt install cpanminus
-apt install make build-essential
+sudo apt install cpanminus make build-essential
 
 cpanm AnyEvent
 cpanm EV
@@ -15,14 +33,11 @@ Thats all
 Try to start: 
 ./scripts/mir
 
-
-
 INSTALL nginx:
 STEP BY STEP
 cd nginx/nginx-1.22.0-src
 ./configure --prefix=../
-make
-make install
+make && make install && make clean
 cd ../
 cp nginx.conf conf/nginx.conf
 cd ../
@@ -30,8 +45,5 @@ cd ../
 STARTING NGINX:
 cd nginx/sbin && ./nginx && cd ../../
 
-Try to open in browser:
-http://127.0.0.1:3000/
 
-Thats all, may to to code mir
 
