@@ -1,1 +1,16 @@
-SOME README
+README
+
+HOW TO INSTALL MIR KERNEL ON DEBIAN / UBUNTU:
+
+
+apt install cpanminus
+apt install make build-essential
+
+cpanm AnyEvent
+cpanm EV
+cpanm AnyEvent::HTTPD
+
+Thats all
+
+Try to start: 
+./scripts/mir
