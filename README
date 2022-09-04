@@ -29,7 +29,7 @@ sudo cpanm AnyEvent EV AnyEvent::HTTPD Linux::Cpuinfo JSON::XS
 Thats all
 
 Try to start: 
-./scripts/mir
+./scripts/mir factory
 
 INSTALL nginx:
 STEP BY STEP

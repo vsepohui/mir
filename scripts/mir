@@ -8,33 +8,56 @@ use AnyEvent::HTTPD;
 use Sub::Daemon;
 use Mir::Config;
 
+use constant PORT_START_FROM => 8000;
+
+use experimental 'smartmatch';
+
+my $cmd = $ARGV[0] || 'help';
+$cmd =~ s/\W//g;
+
 my $config = Mir::Config->get;
 
-my $daemon = new Sub::Daemon(
-	debug => 0,
-	piddir => "$Bin/../pids/",
-	logdir => "$Bin/../logs/",
-);
-$daemon->_daemonize;
+my $routes = [
+	[[qw/worker/],				\&worker],
+    [[qw/factory start/], 		\&factory],
+    [[qw/help/], 				\&help],
+];
 
-my $port = 8000;
+(map {$_->[1]->()} grep {$cmd ~~ $_->[0]} @$routes) or help();
+exit();
 
-$daemon->spawn(
-	nproc => $config->{ncpus},
-	code  => sub {
-		    my %params = (
-				child_num => undef,
-				@_,
-		    );
-		    my $child_num = $params{child_num};
-		    
-			my $p = $port + $child_num - 1;
-			
+
+sub help {
+    say "Usage:";
+    say "\tmir worker XXXX			Start worker process on port: XXXX";
+    say "\tmir start				Start factory process";
+    say "\tmir help					Show this help";
+}
+
+
+sub worker {
+	my $port = $ARGV[1];
+	unless ($port && $port =~ /^\d+$/) {
+		warn "Wrong port";
+		return help();
+	}
+
+	my $daemon = new Sub::Daemon(
+		debug => 0,
+		piddir 	=> "$Bin/../pids/",
+		logdir 	=> "$Bin/../logs/",
+		pidfile => "mir.worker.$port.pid",
+		logfile => "mir.worker.$port.log",
+	);
+	$daemon->_daemonize;
+	
+	$daemon->spawn(
+		nproc => 1,
+		code  => sub {	
 			my $startup_time = scalar localtime;
 			
-			warn "Starting child num: $child_num; port = $p";
 			my $cv = AnyEvent->condvar;
-			my $httpd = AnyEvent::HTTPD->new(port => $p);
+			my $httpd = AnyEvent::HTTPD->new(port => $port);
 			$httpd->reg_cb(
 				request => sub {
 					my $httpd = shift;
@@ -55,5 +78,68 @@ $daemon->spawn(
 			$SIG{'HUP'} = sub {$cv->send};
 			
 			$cv->wait;
-	},
-);
+		},
+	);
+}
+
+
+sub factory {
+	my $daemon = new Sub::Daemon(
+		debug => 0,
+		piddir => "$Bin/../pids/",
+		logdir => "$Bin/../logs/",
+	);
+	$daemon->_daemonize;
+	
+	my $procs = $config->{ncpus};
+	
+	for (1..$procs) {
+		my $port = PORT_START_FROM() + $_ - 1;
+		warn "Start worker on port $port";
+		`$Bin/$0 worker $port`;
+	}
+
+	$daemon->spawn(
+		nproc => 1,
+		code  => sub {	
+			my $cv = AnyEvent->condvar;
+			
+			my $get_worker_pids = sub {
+				my @pids = ();
+				for (1..$procs) {
+					my $port = PORT_START_FROM() + $_ - 1;
+					open my $fh, "$Bin/../pids/mir.worker.$port.pid";
+					my $pid = <$fh>;
+					chomp $pid;
+					close $fh;
+					push @pids, $pid;
+				}
+				return @pids;
+			};
+			
+			
+			for my $sig_type (qw(TERM INT)) {
+				my @pids = $get_worker_pids->();
+				$SIG{$sig_type} = sub {
+					for my $pid (@pids) {
+						kill $sig_type, $pid;
+					}
+					$cv->send();
+				};
+			}
+			
+			$SIG{'HUP'} = sub {
+				my @pids = $get_worker_pids->();
+				for my $pid (@pids) {
+					kill 'HUP', $pid;
+				}
+			};	
+			
+			$cv->recv;
+		}
+	);
+	
+	return 1;
+}
+
+1;

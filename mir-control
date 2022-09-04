@@ -89,10 +89,7 @@ sub setup {
 		say $fh "server 127.0.0.1:$port;"
 	}
 	close $fh;
-	
-	`perl -i -pe 's/worker_processes\s+\d+/worker_processes $ncpu/' nginx/conf/nginx.conf`;
-	
-	
+		
 	my $config_text = encode_json({
 		ncpus => $ncpu,
 	});
@@ -125,7 +122,7 @@ sub get_www_pid {
 }
 
 sub www_start {
-	ex('./scripts/mir');
+	ex('./scripts/mir factory');
 }
 
 sub www {
